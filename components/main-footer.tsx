@@ -23,13 +23,16 @@ export default function MainFooter() {
             width={60}
             className="h-[52px] w-auto rounded object-contain"
           />
-          <div>
+          <div className="group relative cursor-help">
             <div className="text-base font-bold leading-tight">
               First Pack Asset Management
             </div>
             <div className="mt-0.5 text-xs leading-tight text-white/60">
               For First Class Experience
             </div>
+            <span className="absolute left-0 top-full mt-1 hidden whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 group-hover:block">
+              developed by wekwaGudo
+            </span>
           </div>
         </div>
 
