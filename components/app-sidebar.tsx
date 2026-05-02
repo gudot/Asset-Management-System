@@ -50,8 +50,7 @@ export function AppSidebar() {
           />
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-sidebar-foreground">First Pack</span>
-          <span className="text-xs text-sidebar-foreground/70">Asset Management</span>
+          <span className="text-sm font-semibold text-sidebar-foreground">First Pack <br />Marketing</span>
         </div>
       </div>
 
