@@ -86,8 +86,9 @@ The system uses the following main tables:
 │   ├── logs/             # Audit logs page
 │   ├── maintenance/      # Maintenance pages
 │   ├── reports/          # Reports page
-│   ├── signup/           # Signup page
 │   ├── transfers/        # Transfer pages
+│   ├── unauthorized/     # Missing-role fallback page
+│   ├── users/            # Admin-only user management
 │   ├── layout.tsx        # Root layout
 │   └── page.tsx          # Dashboard page
 ├── components/            # Reusable UI components

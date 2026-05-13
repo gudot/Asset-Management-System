@@ -19,11 +19,11 @@ export function DashboardLayout({
     actions,
 }: DashboardLayoutProps) {
     return (
-        <div className="min-h-screen bg-background">
-            <AppSidebar />
-            <div className="pl-52">
-                <MainHeader />
-                <main className="p-6">
+        <div className="flex min-h-screen flex-col bg-background">
+            <MainHeader />
+            <div className="flex flex-1">
+                <AppSidebar />
+                <main className="min-w-0 flex-1 p-6">
                     {(title || description || actions) && (
                         <div className="mb-8 flex items-start justify-between">
                             <div>
@@ -37,8 +37,8 @@ export function DashboardLayout({
                     )}
                     {children}
                 </main>
-                <MainFooter />
             </div>
+            <MainFooter />
         </div>
     );
 }

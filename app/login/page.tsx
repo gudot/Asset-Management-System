@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import Link from "next/link";
 import { loginAction } from "./actions";
 import Image from "next/image";
 
@@ -160,15 +159,6 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">
-                {"Don't have an account? "}
-              </span>
-              <Link href="/signup" className="font-medium text-primary hover:underline">
-                Request access
-              </Link>
-            </div>
           </CardContent>
         </Card>
 

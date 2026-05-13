@@ -5,8 +5,10 @@ import { writeAuditLog } from "@/lib/audit-log"
 import { auditFormSchema, parseFormData, zodErrorMessage } from "@/lib/validation"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { requireRole } from "@/lib/auth/server"
 
 export async function createAudit(formData: FormData) {
+  await requireRole(["admin", "auditor"])
   const supabase = await getSupabaseServerClient()
 
   let values
@@ -59,6 +61,7 @@ export async function createAudit(formData: FormData) {
 }
 
 export async function startAudit(id: string) {
+  await requireRole(["admin", "auditor"])
   const supabase = await getSupabaseServerClient()
 
   // Get audit details
@@ -117,6 +120,7 @@ export async function startAudit(id: string) {
 }
 
 export async function completeAudit(id: string) {
+  await requireRole(["admin", "auditor"])
   const supabase = await getSupabaseServerClient()
 
   // Count verified and discrepancies
@@ -159,6 +163,7 @@ export async function updateAuditItem(
   status: "verified" | "missing" | "damaged" | "discrepancy",
   notes?: string
 ) {
+  await requireRole(["admin", "auditor"])
   const supabase = await getSupabaseServerClient()
 
   const { error } = await supabase

@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { Plus, ClipboardCheck, AlertTriangle, CheckCircle, Clock, Play } from "lucide-react"
 import Link from "next/link"
 import { startAudit, completeAudit } from "./actions"
+import { requireRole } from "@/lib/auth/server"
 
 async function getAudits() {
   const supabase = await getSupabaseServerClient()
@@ -23,6 +24,7 @@ async function getAudits() {
 }
 
 export default async function AuditsPage() {
+  await requireRole(["admin", "auditor"])
   const audits = await getAudits()
 
   const plannedCount = audits.filter(a => a.status === "planned").length

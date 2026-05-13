@@ -15,6 +15,7 @@ import {
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { AuditItemActions } from "./audit-item-actions"
+import { requireRole } from "@/lib/auth/server"
 
 async function getAuditDetails(id: string) {
   const supabase = await getSupabaseServerClient()
@@ -46,6 +47,7 @@ export default async function AuditDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  await requireRole(["admin", "auditor"])
   
   // Prevent this route from handling /audits/new
   if (id === "new") {

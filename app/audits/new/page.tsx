@@ -1,6 +1,7 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { AuditForm } from "./audit-form"
+import { requireRole } from "@/lib/auth/server"
 
 async function getBranches() {
   const supabase = await getSupabaseServerClient()
@@ -15,6 +16,7 @@ async function getBranches() {
 }
 
 export default async function NewAuditPage() {
+  await requireRole(["admin", "auditor"])
   const branches = await getBranches()
 
   return (
