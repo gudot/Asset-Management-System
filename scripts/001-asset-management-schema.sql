@@ -2,6 +2,7 @@
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Branches table
 CREATE TABLE IF NOT EXISTS branches (
@@ -279,6 +280,96 @@ INSERT INTO branches (name, code, address, city, phone, email, is_headquarters, 
 VALUES ('First Pack HQ', 'FP-HQ', 'Main Street', 'Harare', '+263 242 000 000', 'hq@firstpack.co.zw', TRUE, 'active')
 ON CONFLICT DO NOTHING;
 
+-- Seed the initial administrator.
+-- Email: admin@firstpack.co.zw
+-- Temporary password: ChangeMe123!
+DO $$
+DECLARE
+  admin_user_id UUID := '00000000-0000-0000-0000-000000000001';
+  admin_identity_id UUID := '00000000-0000-0000-0000-000000000002';
+BEGIN
+  INSERT INTO auth.users (
+    id,
+    instance_id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    recovery_sent_at,
+    last_sign_in_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    created_at,
+    updated_at,
+    confirmation_token,
+    email_change,
+    email_change_token_new,
+    recovery_token
+  )
+  VALUES (
+    admin_user_id,
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'admin@firstpack.co.zw',
+    crypt('ChangeMe123!', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NULL,
+    '{"provider":"email","providers":["email"],"role":"admin"}'::jsonb,
+    '{"full_name":"System Administrator"}'::jsonb,
+    NOW(),
+    NOW(),
+    '',
+    '',
+    '',
+    ''
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    encrypted_password = EXCLUDED.encrypted_password,
+    raw_app_meta_data = '{"provider":"email","providers":["email"],"role":"admin"}'::jsonb,
+    raw_user_meta_data = '{"full_name":"System Administrator"}'::jsonb,
+    email_confirmed_at = COALESCE(auth.users.email_confirmed_at, NOW()),
+    confirmation_token = '',
+    email_change = '',
+    email_change_token_new = '',
+    recovery_token = '',
+    updated_at = NOW();
+
+  DELETE FROM auth.identities
+  WHERE user_id = admin_user_id
+    OR (provider = 'email' AND provider_id IN ('admin@firstpack.co.zw', admin_user_id::TEXT));
+
+  INSERT INTO auth.identities (
+    id,
+    provider_id,
+    user_id,
+    identity_data,
+    provider,
+    last_sign_in_at,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    admin_identity_id,
+    admin_user_id::TEXT,
+    admin_user_id,
+    jsonb_build_object(
+      'sub', admin_user_id::TEXT,
+      'email', 'admin@firstpack.co.zw',
+      'email_verified', TRUE,
+      'phone_verified', FALSE
+    ),
+    'email',
+    NOW(),
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (provider, provider_id) DO NOTHING;
+END $$;
+
 -- Insert default asset categories
 INSERT INTO asset_categories (name, description, depreciation_rate, useful_life_years) VALUES
   ('IT Equipment', 'Computers, laptops, servers, networking equipment', 25.00, 4),
@@ -313,7 +404,7 @@ ALTER TABLE asset_audits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE asset_disposals ENABLE ROW LEVEL SECURITY;
 
--- Create policies for public access (for demo - in production, restrict to authenticated users)
+-- Create policies for role-based authenticated access.
 DROP POLICY IF EXISTS "Allow all access to branches" ON branches;
 DROP POLICY IF EXISTS "Allow all access to assets" ON assets;
 DROP POLICY IF EXISTS "Allow all access to asset_categories" ON asset_categories;
@@ -323,13 +414,38 @@ DROP POLICY IF EXISTS "Allow all access to audit_logs" ON audit_logs;
 DROP POLICY IF EXISTS "Allow all access to asset_audits" ON asset_audits;
 DROP POLICY IF EXISTS "Allow all access to audit_items" ON audit_items;
 DROP POLICY IF EXISTS "Allow all access to asset_disposals" ON asset_disposals;
+DROP POLICY IF EXISTS "Authenticated access to branches" ON branches;
+DROP POLICY IF EXISTS "Authenticated access to assets" ON assets;
+DROP POLICY IF EXISTS "Authenticated access to asset_categories" ON asset_categories;
+DROP POLICY IF EXISTS "Authenticated access to asset_transfers" ON asset_transfers;
+DROP POLICY IF EXISTS "Authenticated access to asset_maintenance" ON asset_maintenance;
+DROP POLICY IF EXISTS "Authenticated access to asset_disposals" ON asset_disposals;
+DROP POLICY IF EXISTS "Auditors manage asset_audits" ON asset_audits;
+DROP POLICY IF EXISTS "Auditors manage audit_items" ON audit_items;
+DROP POLICY IF EXISTS "Auditors read audit_logs" ON audit_logs;
+DROP POLICY IF EXISTS "Authenticated users write audit_logs" ON audit_logs;
 
-CREATE POLICY "Allow all access to branches" ON branches FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to assets" ON assets FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to asset_categories" ON asset_categories FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to asset_transfers" ON asset_transfers FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to asset_maintenance" ON asset_maintenance FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to audit_logs" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to asset_audits" ON asset_audits FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to audit_items" ON audit_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to asset_disposals" ON asset_disposals FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access to branches" ON branches FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access to assets" ON assets FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access to asset_categories" ON asset_categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access to asset_transfers" ON asset_transfers FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access to asset_maintenance" ON asset_maintenance FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated access to asset_disposals" ON asset_disposals FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Auditors manage asset_audits" ON asset_audits
+  FOR ALL TO authenticated
+  USING ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('admin', 'auditor'))
+  WITH CHECK ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('admin', 'auditor'));
+
+CREATE POLICY "Auditors manage audit_items" ON audit_items
+  FOR ALL TO authenticated
+  USING ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('admin', 'auditor'))
+  WITH CHECK ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('admin', 'auditor'));
+
+CREATE POLICY "Auditors read audit_logs" ON audit_logs
+  FOR SELECT TO authenticated
+  USING ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('admin', 'auditor'));
+
+CREATE POLICY "Authenticated users write audit_logs" ON audit_logs
+  FOR INSERT TO authenticated
+  WITH CHECK (true);

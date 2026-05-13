@@ -1,5 +1,32 @@
 import { createServerClient } from "@supabase/ssr";
+import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+
+const roles = ["admin", "auditor", "accountant"] as const;
+type UserRole = (typeof roles)[number];
+
+function isUserRole(value: unknown): value is UserRole {
+  return typeof value === "string" && roles.includes(value as UserRole);
+}
+
+function getUserRole(user: User | null) {
+  const role = user?.app_metadata?.role;
+  return isUserRole(role) ? role : null;
+}
+
+function canAccessPath(role: UserRole | null, pathname: string) {
+  if (!role) return false;
+
+  const restrictedPaths: Record<UserRole, string[]> = {
+    admin: [],
+    auditor: ["/users"],
+    accountant: ["/audits", "/reports", "/logs", "/users"],
+  };
+
+  return !restrictedPaths[role].some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -50,6 +77,7 @@ export async function middleware(request: NextRequest) {
     "/disposals",
     "/categories",
     "/logs",
+    "/users",
   ];
 
   const isProtectedPath = protectedPaths.some(
@@ -64,14 +92,33 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from login/signup
-  if (
-    user &&
-    (request.nextUrl.pathname === "/login" ||
-      request.nextUrl.pathname === "/signup")
-  ) {
+  const userRole = getUserRole(user);
+
+  if (isProtectedPath && user && !userRole) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/unauthorized";
+    return NextResponse.redirect(url);
+  }
+
+  if (isProtectedPath && user && !canAccessPath(userRole, request.nextUrl.pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
+  if (request.nextUrl.pathname === "/signup") {
+    const url = request.nextUrl.clone();
+    url.pathname = user ? "/" : "/login";
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect authenticated users away from login
+  if (
+    user &&
+    request.nextUrl.pathname === "/login"
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = userRole ? "/" : "/unauthorized";
     return NextResponse.redirect(url);
   }
 

@@ -15,6 +15,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { requireAuth } from "@/lib/auth/server"
+import { getUserRole } from "@/lib/auth/roles"
 
 async function getDashboardData() {
   const supabase = await getSupabaseServerClient()
@@ -74,6 +76,9 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
+  const user = await requireAuth()
+  const role = getUserRole(user)
+  const canViewAudits = role === "admin" || role === "auditor"
   const data = await getDashboardData()
 
   const formatCurrency = (value: number) => {
@@ -168,12 +173,14 @@ export default async function DashboardPage() {
             icon={ArrowLeftRight}
             iconColor="bg-blue-100 text-blue-700"
           />
-          <StatsCard
-            title="Upcoming Audits"
-            value={data.upcomingAudits}
-            icon={ClipboardCheck}
-            iconColor="bg-purple-100 text-purple-700"
-          />
+          {canViewAudits && (
+            <StatsCard
+              title="Upcoming Audits"
+              value={data.upcomingAudits}
+              icon={ClipboardCheck}
+              iconColor="bg-purple-100 text-purple-700"
+            />
+          )}
           <StatsCard
             title="Asset Utilization"
             value="94%"
